@@ -1830,6 +1830,8 @@
                       <object class="GtkListBoxRow" id="listboxrow_rnd_border">
                         <property name="width_request">100</property>
                         <property name="height_request">80</property>
+                        <property name="margin-start">12</property>
+                        <property name="margin-end">12</property>
                         <property name="child">
                           <object class="GtkBox">
                             <property name="can_focus">0</property>
@@ -1841,11 +1843,39 @@
                                 <property name="valign">center</property>
                                 <property name="halign">start</property>
                                 <property name="label" translatable="yes">Force straight corner</property>
-
                               </object>
                             </child>
                             <child>
                               <object class="GtkSwitch" id="force_straight_corner_switch">
+                                <property name="valign">center</property>
+                                <property name="margin-start">3</property>
+                              </object>
+                            </child>
+                          </object>
+                        </property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkListBoxRow" id="listboxrow_hide_tooltips">
+                        <property name="width_request">100</property>
+                        <property name="height_request">80</property>
+                        <property name="margin-start">12</property>
+                        <property name="margin-end">12</property>
+                        <property name="child">
+                          <object class="GtkBox">
+                            <property name="can_focus">0</property>
+                            <property name="spacing">32</property>
+                            <child>
+                              <object class="GtkLabel" id="hide_tooltips_label">
+                                <property name="hexpand">1</property>
+                                <property name="can_focus">0</property>
+                                <property name="valign">center</property>
+                                <property name="halign">start</property>
+                                <property name="label" translatable="yes">Hide tooltips</property>
+                              </object>
+                            </child>
+                            <child>
+                              <object class="GtkSwitch" id="hide_tooltips_switch">
                                 <property name="valign">center</property>
                                 <property name="margin-start">3</property>
                               </object>

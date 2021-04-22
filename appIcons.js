@@ -540,7 +540,8 @@ class MyAppIcon extends Dash.DashIcon {
 
     shouldShowTooltip() {
         return this.hover && (!this._menu || !this._menu.isOpen) &&
-                            (!this._previewMenu || !this._previewMenu.isOpen);
+                            (!this._previewMenu || !this._previewMenu.isOpen) &&
+                            !Docking.DockManager.settings.get_boolean('hide-tooltips');
     }
 
     _windowPreviews() {

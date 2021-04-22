@@ -542,6 +542,11 @@
       <summary>Force straight corners in dash</summary>
       <description>Make the borders in the dash non rounded</description>
     </key>
+    <key name="hide-tooltips" type="b">
+      <default>false</default>
+      <summary>Hide tooltips</summary>
+      <description>Hide application tooltip when mouse over it</description>
+    </key>
     <key name="unity-backlit-items" type="b">
       <default>false</default>
       <summary>Enable unity7 like glossy backlit items</summary>

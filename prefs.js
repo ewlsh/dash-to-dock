@@ -863,6 +863,10 @@ var Settings = GObject.registerClass({
             this._builder.get_object('force_straight_corner_switch'),
             'active', Gio.SettingsBindFlags.DEFAULT);
 
+        this._settings.bind('hide-tooltips',
+            this._builder.get_object('hide_tooltips_switch'),
+            'active', Gio.SettingsBindFlags.DEFAULT);
+
         // About Panel
 
         this._builder.get_object('extension_version').set_label(Me.metadata.version.toString());
