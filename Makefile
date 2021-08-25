@@ -1,15 +1,18 @@
 # Basic Makefile
 
 UUID = dash-to-dock@micxgx.gmail.com
-BASE_MODULES = extension.js stylesheet.css metadata.json COPYING README.md
-EXTRA_MODULES = convenience.js dash.js docking.js appIcons.js windowPreview.js intellihide.js prefs.js theming.js Settings.ui
-EXTRA_MEDIA = logo.svg
-TOLOCALIZE =  prefs.js
+BASE_MODULES = extension.js metadata.json COPYING README.md
+EXTRA_MODULES = dash.js docking.js appIcons.js appIconIndicators.js fileManager1API.js launcherAPI.js locations.js windowPreview.js intellihide.js prefs.js theming.js utils.js dbusmenuUtils.js Settings.ui
+EXTRA_MEDIA = logo.svg glossy.svg highlight_stacked_bg.svg highlight_stacked_bg_h.svg
+TOLOCALIZE =  prefs.js appIcons.js locations.js
 MSGSRC = $(wildcard po/*.po)
 ifeq ($(strip $(DESTDIR)),)
+	INSTALLTYPE = local
 	INSTALLBASE = $(HOME)/.local/share/gnome-shell/extensions
 else
-	INSTALLBASE = $(DESTDIR)/usr/share/gnome-shell/extensions
+	INSTALLTYPE = system
+	SHARE_PREFIX = $(DESTDIR)/usr/share
+	INSTALLBASE = $(SHARE_PREFIX)/gnome-shell/extensions
 endif
 INSTALLNAME = dash-to-dock@micxgx.gmail.com
 
@@ -28,8 +31,10 @@ all: extension
 
 clean:
 	rm -f ./schemas/gschemas.compiled
+	rm -f stylesheet.css
+	rm -rf _build
 
-extension: ./schemas/gschemas.compiled $(MSGSRC:.po=.mo)
+extension: ./schemas/gschemas.compiled ./stylesheet.css $(MSGSRC:.po=.mo)
 
 ./schemas/gschemas.compiled: ./schemas/org.gnome.shell.extensions.dash-to-dock.gschema.xml
 	glib-compile-schemas ./schemas/
@@ -43,12 +48,23 @@ mergepo: potfile
 
 ./po/dashtodock.pot: $(TOLOCALIZE) Settings.ui
 	mkdir -p po
-	xgettext -k_ -kN_ -o po/dashtodock.pot --package-name "Dash to Dock" $(TOLOCALIZE)
+	xgettext -k --keyword=__ --keyword=N__ --add-comments='Translators:' -o po/dashtodock.pot --package-name "Dash to Dock" --from-code=utf-8 $(TOLOCALIZE)
 	intltool-extract --type=gettext/glade Settings.ui
-	xgettext -k_ -kN_ --join-existing -o po/dashtodock.pot Settings.ui.h
+	xgettext -k --keyword=_ --keyword=N_ --join-existing -o po/dashtodock.pot Settings.ui.h
 
 ./po/%.mo: ./po/%.po
 	msgfmt -c $< -o $@
+
+./stylesheet.css: ./_stylesheet.scss
+ifeq ($(SASS), ruby)
+	sass --sourcemap=none --no-cache --scss _stylesheet.scss stylesheet.css
+else ifeq ($(SASS), dart)
+	sass --no-source-map _stylesheet.scss stylesheet.css
+else ifeq ($(SASS), sassc)
+	sassc --omit-map-comment _stylesheet.scss stylesheet.css
+else
+	sassc --omit-map-comment _stylesheet.scss stylesheet.css
+endif
 
 install: install-local
 
@@ -56,6 +72,13 @@ install-local: _build
 	rm -rf $(INSTALLBASE)/$(INSTALLNAME)
 	mkdir -p $(INSTALLBASE)/$(INSTALLNAME)
 	cp -r ./_build/* $(INSTALLBASE)/$(INSTALLNAME)/
+ifeq ($(INSTALLTYPE),system)
+	# system-wide settings and locale files
+	rm -r $(INSTALLBASE)/$(INSTALLNAME)/schemas $(INSTALLBASE)/$(INSTALLNAME)/locale
+	mkdir -p $(SHARE_PREFIX)/glib-2.0/schemas $(SHARE_PREFIX)/locale
+	cp -r ./schemas/*gschema.* $(SHARE_PREFIX)/glib-2.0/schemas
+	cp -r ./_build/locale/* $(SHARE_PREFIX)/locale
+endif
 	-rm -fR _build
 	echo done
 
@@ -69,6 +92,7 @@ _build: all
 	-rm -fR ./_build
 	mkdir -p _build
 	cp $(BASE_MODULES) $(EXTRA_MODULES) _build
+	cp stylesheet.css _build
 	mkdir -p _build/media
 	cd media ; cp $(EXTRA_MEDIA) ../_build/media/
 	mkdir -p _build/schemas

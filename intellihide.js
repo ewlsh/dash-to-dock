@@ -1,8 +1,6 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 
 const GLib = imports.gi.GLib;
-const Lang = imports.lang;
-const Mainloop = imports.mainloop;
 const Meta = imports.gi.Meta;
 const Shell = imports.gi.Shell;
 
@@ -10,7 +8,8 @@ const Main = imports.ui.main;
 const Signals = imports.signals;
 
 const Me = imports.misc.extensionUtils.getCurrentExtension();
-const Convenience = Me.imports.convenience;
+const Docking = Me.imports.docking;
+const Utils = Me.imports.utils;
 
 // A good compromise between reactivity and efficiency; to be tuned.
 const INTELLIHIDE_CHECK_INTERVAL = 100;
@@ -45,14 +44,13 @@ const handledWindowTypes = [
  * Intallihide object: emit 'status-changed' signal when the overlap of windows
  * with the provided targetBoxClutter.ActorBox changes;
  */
-const Intellihide = new Lang.Class({
-    Name: 'DashToDock.Intellihide',
+var Intellihide = class DashToDock_Intellihide {
 
-    _init: function(settings) {
+    constructor(monitorIndex) {
         // Load settings
-        this._settings = settings;
+        this._monitorIndex = monitorIndex;
 
-        this._signalsHandler = new Convenience.GlobalSignalsHandler();
+        this._signalsHandler = new Utils.GlobalSignalsHandler();
         this._tracker = Shell.WindowTracker.get_default();
         this._focusApp = null; // The application whose window is focused.
         this._topApp = null; // The application whose window is on top on the monitor with the dock.
@@ -64,101 +62,100 @@ const Intellihide = new Lang.Class({
         this._checkOverlapTimeoutContinue = false;
         this._checkOverlapTimeoutId = 0;
 
+        this._trackedWindows = new Map();
+
         // Connect global signals
         this._signalsHandler.add([
             // Add signals on windows created from now on
             global.display,
             'window-created',
-            Lang.bind(this, this._windowCreated)
+            this._windowCreated.bind(this)
         ], [
             // triggered for instance when the window list order changes,
             // included when the workspace is switched
-            global.screen,
+            global.display,
             'restacked',
-            Lang.bind(this, this._checkOverlap)
+            this._checkOverlap.bind(this)
         ], [
             // when windows are alwasy on top, the focus window can change
             // without the windows being restacked. Thus monitor window focus change.
             this._tracker,
             'notify::focus-app',
-            Lang.bind(this, this._checkOverlap)
+            this._checkOverlap.bind(this)
         ], [
             // update wne monitor changes, for instance in multimonitor when monitor are attached
-            global.screen,
+            Meta.MonitorManager.get(),
             'monitors-changed',
-            Lang.bind(this, this._checkOverlap )
+            this._checkOverlap.bind(this)
         ]);
-    },
+    }
 
-    destroy: function() {
+    destroy() {
         // Disconnect global signals
         this._signalsHandler.destroy();
 
         // Remove  residual windows signals
         this.disable();
-    },
+    }
 
-    enable: function() {
+    enable() {
         this._isEnabled = true;
         this._status = OverlapStatus.UNDEFINED;
-        global.get_window_actors().forEach(function(win) {
-            this._addWindowSignals(win.get_meta_window());
+        global.get_window_actors().forEach(function(wa) {
+            this._addWindowSignals(wa);
         }, this);
         this._doCheckOverlap();
-    },
+    }
 
-    disable: function() {
+    disable() {
         this._isEnabled = false;
-        global.get_window_actors().forEach(function(win) {
-            this._removeWindowSignals(win.get_meta_window());
-        }, this);
+
+        for (let wa of this._trackedWindows.keys()) {
+            this._removeWindowSignals(wa);
+        }
+        this._trackedWindows.clear();
 
         if (this._checkOverlapTimeoutId > 0) {
-            Mainloop.source_remove(this._checkOverlapTimeoutId);
+            GLib.source_remove(this._checkOverlapTimeoutId);
             this._checkOverlapTimeoutId = 0;
         }
-    },
+    }
 
-    _windowCreated: function(display, meta_win) {
-        this._addWindowSignals(meta_win);
-    },
+    _windowCreated(display, metaWindow) {
+        this._addWindowSignals(metaWindow.get_compositor_private());
+    }
 
-    _addWindowSignals: function(meta_win) {
-        if (!meta_win || !this._handledWindow(meta_win))
+    _addWindowSignals(wa) {
+        if (!this._handledWindow(wa))
             return;
+        let signalId = wa.connect('notify::allocation', this._checkOverlap.bind(this));
+        this._trackedWindows.set(wa, signalId);
+        wa.connect('destroy', this._removeWindowSignals.bind(this));
+    }
 
-        meta_win.dtd_onPositionChanged = meta_win.connect('position-changed', Lang.bind(this, this._checkOverlap, meta_win));
-
-        meta_win.dtd_onSizeChanged = meta_win.connect('size-changed', Lang.bind(this, this._checkOverlap, meta_win));
-    },
-
-    _removeWindowSignals: function(meta_win) {
-        if (meta_win && meta_win.dtd_onSizeChanged) {
-           meta_win.disconnect(meta_win.dtd_onSizeChanged);
-           delete meta_win.dtd_onSizeChanged;
+    _removeWindowSignals(wa) {
+        if (this._trackedWindows.get(wa)) {
+           wa.disconnect(this._trackedWindows.get(wa));
+           this._trackedWindows.delete(wa);
         }
 
-        if (meta_win && meta_win.dtd_onPositionChanged) {
-           meta_win.disconnect(meta_win.dtd_onPositionChanged);
-           delete meta_win.dtd_onPositionChanged;
-        }
-    },
+    }
 
-    updateTargetBox: function(box) {
+    updateTargetBox(box) {
         this._targetBox = box;
         this._checkOverlap();
-    },
+    }
 
-    forceUpdate: function() {
+    forceUpdate() {
         this._status = OverlapStatus.UNDEFINED;
         this._doCheckOverlap();
-    },
+    }
 
-    getOverlapStatus: function() {
+    getOverlapStatus() {
         return (this._status == OverlapStatus.TRUE);
-    },
+    }
 
-    _checkOverlap: function() {
+    _checkOverlap() {
         if (!this._isEnabled || (this._targetBox == null))
             return;
 
@@ -170,7 +167,8 @@ const Intellihide = new Lang.Class({
 
         this._doCheckOverlap();
 
-        this._checkOverlapTimeoutId = Mainloop.timeout_add(INTELLIHIDE_CHECK_INTERVAL, Lang.bind(this, function() {
+        this._checkOverlapTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT, INTELLIHIDE_CHECK_INTERVAL, () => {
             this._doCheckOverlap();
             if (this._checkOverlapTimeoutContinue) {
                 this._checkOverlapTimeoutContinue = false;
@@ -179,10 +177,10 @@ const Intellihide = new Lang.Class({
                 this._checkOverlapTimeoutId = 0;
                 return GLib.SOURCE_REMOVE;
             }
-        }));
-    },
+        });
+    }
 
-    _doCheckOverlap: function() {
+    _doCheckOverlap() {
 
         if (!this._isEnabled || (this._targetBox == null))
             return;
@@ -198,25 +196,10 @@ const Intellihide = new Lang.Class({
              * select a window in the secondary monitor.
              */
 
-            let monitorIndex = this._settings.get_int('preferred-monitor');
-
-            // The dock goes on the primary monitor if requested (monitorIndex==0) or if the setting
-            // is incosistent (e.g. desired monitor not connected).
-            if ((monitorIndex <= 0) || (monitorIndex > Main.layoutManager.monitors.length -1))
-                monitorIndex = Main.layoutManager.primaryIndex;
-            else {
-                // Gdk and shell monitors numbering differ at least under wayland:
-                // While the primary monitor appears to be always index 0 in Gdk,
-                // the shell can assign a different number (Main.layoutManager.primaryMonitor)
-                // remap monitors numbering from settings (Gdk) to shell
-                if (monitorIndex <= Main.layoutManager.primaryIndex)
-                    monitorIndex = (monitorIndex + 1) % Main.layoutManager.monitors.length;
-            }
-
             let topWindow = null;
             for (let i = windows.length - 1; i >= 0; i--) {
                 let meta_win = windows[i].get_meta_window();
-                if (this._handledWindow(meta_win) && (meta_win.get_monitor() == monitorIndex)) {
+                if (this._handledWindow(windows[i]) && (meta_win.get_monitor() == this._monitorIndex)) {
                     topWindow = meta_win;
                     break;
                 }
@@ -254,22 +237,22 @@ const Intellihide = new Lang.Class({
             this.emit('status-changed', this._status);
         }
 
-    },
+    }
 
     // Filter interesting windows to be considered for intellihide.
     // Consider all windows visible on the current workspace.
     // Optionally skip windows of other applications
-    _intellihideFilterInteresting: function(wa) {
+    _intellihideFilterInteresting(wa) {
         let meta_win = wa.get_meta_window();
-        if (!meta_win || !this._handledWindow(meta_win))
+        if (!this._handledWindow(wa))
             return false;
 
-        let currentWorkspace = global.screen.get_active_workspace_index();
+        let currentWorkspace = global.workspace_manager.get_active_workspace_index();
         let wksp = meta_win.get_workspace();
         let wksp_index = wksp.index();
 
         // Depending on the intellihide mode, exclude non-relevent windows
-        switch (this._settings.get_enum('intellihide-mode')) {
+        switch (Docking.DockManager.settings.get_enum('intellihide-mode')) {
             case IntellihideMode.ALL_WINDOWS:
                 // Do nothing
                 break;
@@ -308,11 +291,16 @@ const Intellihide = new Lang.Class({
         else
             return false;
 
-    },
+    }
 
     // Filter windows by type
     // inspired by Opacify@gnome-shell.localdomain.pl
-    _handledWindow: function(metaWindow) {
+    _handledWindow(wa) {
+        let metaWindow = wa.get_meta_window();
+
+        if (!metaWindow)
+            return false;
+
         // The DropDownTerminal extension uses the POPUP_MENU window type hint
         // so we match its window by wm class instead
         if (metaWindow.get_wm_class() == 'DropDownTerminalWindow')
@@ -328,6 +316,6 @@ const Intellihide = new Lang.Class({
         }
         return false;
     }
-});
+};
 
 Signals.addSignalMethods(Intellihide.prototype);
