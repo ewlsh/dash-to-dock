@@ -41,13 +41,15 @@ $osd_fg_color: #eeeeec;
 @each $side in bottom, top, left, right {
     #dashtodockContainer.#{$side} {
         #dash {
-            margin: 0px;
-            padding: 0px;
+            margin: 0;
+            padding: 0;
+            padding-#{$side}: $dash_padding;
+            padding-#{opposite($side)}: $dash_padding;
 
             .dash-background {
                 margin: 0;
                 margin-#{$side}: $dock_side_margin;
-                padding: 0;
+                padding: $dash_padding;
             }
 
             .dash-separator {
@@ -58,12 +60,6 @@ $osd_fg_color: #eeeeec;
                     margin: ($dash_spacing + ($dash_padding / 2)) 0;
                     background-color: transparentize($osd_fg_color, 0.7);
                 }
-            }
-
-            #dashtodockDashContainer {
-                padding: $dash_padding;
-                padding-#{$side}: 0;
-                padding-#{opposite($side)}: 0;
             }
 
             .dash-item-container {
@@ -81,7 +77,7 @@ $osd_fg_color: #eeeeec;
                 .dash-background {
                     margin-#{$side}: shrink($dock_side_margin);
                     padding: shrink($dash_padding);
-                    border-radius: $dash_border_radius / 2;
+                    border-radius: $dash_border_radius - $dash_padding + shrink($dash_padding);
                 }
 
                 #dashtodockDashContainer {
@@ -134,14 +130,20 @@ $osd_fg_color: #eeeeec;
 @each $side in bottom, top, left, right {
     #dashtodockContainer.extended.#{$side} {
         #dash {
+            margin: 0;
+            padding: 0;
+
             .dash-background {
                 margin: 0;
-                padding: 0;
+                margin-#{$side}: 0 !important;
                 border-radius: 0;
+                padding: 0;
+                padding-#{$side}: $dash_padding;
+                padding-#{opposite($side)}: $dash_padding;
             }
 
             #dashtodockDashContainer {
-                padding: $dash_padding - $dash_spacing;
+                padding: $dash_padding;
                 padding-#{$side}: 0;
                 padding-#{opposite($side)}: 0;
             }
@@ -153,11 +155,28 @@ $osd_fg_color: #eeeeec;
                     padding-#{$side}: $dash_padding;
                     padding-#{opposite($side)}: $dash_padding;
                 }
+
+                .show-apps {
+                @if $side == top or $side == bottom {
+                    margin-left: $dash_padding;
+                } @else {
+                    margin-top: $dash_padding;
+                }
+                }
             }
         }
 
         &.shrink {
             #dash {
+                .dash-background {
+                    margin: 0;
+                    margin-#{$side}: 0 !important;
+                    border-radius: 0;
+                    padding: 0;
+                    padding-#{$side}: shrink($dash_padding - $dash_spacing);
+                    padding-#{opposite($side)}: shrink($dash_padding - $dash_spacing);
+                }
+
                 #dashtodockDashContainer {
                     padding: shrink($dash_padding - $dash_spacing);
                     padding-#{$side}: 0;
@@ -170,6 +189,14 @@ $osd_fg_color: #eeeeec;
                         padding: shrink($dash_spacing);
                         padding-#{$side}: shrink($dash_padding);
                         padding-#{opposite($side)}: shrink($dash_padding);
+                    }
+
+                   .show-apps {
+                        @if $side == top or $side == bottom {
+                            margin-left: shrink($dash_spacing);
+                        } @else {
+                            margin-top: shrink($dash_spacing);
+                        }
                     }
                 }
             }
