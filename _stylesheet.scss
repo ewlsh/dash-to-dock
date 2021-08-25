@@ -157,11 +157,11 @@ $osd_fg_color: #eeeeec;
                 }
 
                 .show-apps {
-                @if $side == top or $side == bottom {
-                    margin-left: $dash_padding;
-                } @else {
-                    margin-top: $dash_padding;
-                }
+                    @if $side == top or $side == bottom {
+                        margin-left: $dash_padding;
+                    } @else {
+                        margin-top: $dash_padding;
+                    }
                 }
             }
         }
