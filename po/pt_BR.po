@@ -99,7 +99,7 @@ msgstr "Percorrer através das janelas"
 
 #: Settings.ui.h:7
 msgid "Minimize or overview"
-msgstr "Minimizar o visão geral"
+msgstr "Minimizar ou visão geral"
 
 #: Settings.ui.h:8
 msgid "Show window previews"
@@ -107,11 +107,11 @@ msgstr "Mostrar pré-visualizações das janelas"
 
 #: Settings.ui.h:9
 msgid "Minimize or show previews"
-msgstr "Minimizar o mostrar pré-visualizações"
+msgstr "Minimizar ou mostrar pré-visualizações"
 
 #: Settings.ui.h:10
 msgid "Focus or show previews"
-msgstr "Pôr em foco o pré-visualizar"
+msgstr "Pôr em foco ou pré-visualizar"
 
 #: Settings.ui.h:11
 msgid "Quit"
